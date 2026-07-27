@@ -32,6 +32,24 @@
   header .spacer { flex: 1; }
   header a { color: var(--text-dim); text-decoration: none; font-size: 12px; white-space: nowrap; }
   header a:hover { color: var(--accent); }
+  header a.tab { padding: 2px 9px; border: 1px solid var(--border); border-radius: 4px; }
+  header a.tab.on { color: var(--accent); border-color: var(--accent); }
+
+  #twins { flex: 1; overflow-y: auto; display: none; padding: 0 0 24px; }
+  .tw { border-bottom: 1px solid var(--border); padding: 9px 14px; }
+  .tw .hd { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .tw .cnt { color: var(--accent); font-weight: 700; }
+  .tw .loc { color: var(--num); font-variant-numeric: tabular-nums; }
+  .tw .sig { color: var(--text-dim); font-size: 11px; margin-top: 4px; }
+  .tw .mem { margin-top: 6px; display: grid;
+             grid-template-columns: minmax(0,1fr) auto auto auto; gap: 2px 12px; font-size: 11.5px; }
+  .tw .mem .fn { color: var(--str); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tw .mem .fn small { color: var(--text-dim); }
+  .tw .mem .num { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .tw .mem a { color: var(--info); text-decoration: none; }
+  .tw .mem a:hover { color: var(--accent); text-decoration: underline; }
+  .banner { padding: 8px 14px; color: var(--warn); font-size: 11.5px;
+            border-bottom: 1px solid var(--border); background: var(--bg-col); }
 
   .stats { display: flex; border-bottom: 1px solid var(--border);
            background: var(--bg-panel); flex: none; overflow-x: auto; }
@@ -124,6 +142,8 @@
   <div class="logo">alembic<span>//</span>transmutation</div>
   <div class="src" id="src">loading…</div>
   <div class="spacer"></div>
+  <a href="#" id="tabBrowse" class="tab on">browse</a>
+  <a href="#" id="tabTwins" class="tab">similar functions</a>
   <a href="https://github.com/rhCat/hermes-agent-transmutation" target="_blank" rel="noopener">method ↗</a>
   <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener">source ↗</a>
 </header>
@@ -131,6 +151,7 @@
 <div class="stats" id="stats"></div>
 <div id="crumbs"></div>
 <div id="columns"></div>
+<div id="twins"></div>
 <footer id="foot"></footer>
 
 <script>
@@ -405,6 +426,54 @@ function buildClaims(list) {
   col.appendChild(body);
   return col;
 }
+
+let TWINS = null;
+function showTwins() {
+  const host = document.getElementById("twins");
+  document.getElementById("columns").style.display = "none";
+  document.getElementById("crumbs").style.display = "none";
+  host.style.display = "block";
+  document.getElementById("tabTwins").classList.add("on");
+  document.getElementById("tabBrowse").classList.remove("on");
+  if (TWINS) return;
+  fetch("data/twins.json").then(r => r.json()).then(d => {
+    TWINS = d;
+    const m = d.meta || {};
+    host.innerHTML =
+      `<div class="banner">A shared signature is <b>evidence of similarity, not a duplicate</b> —
+       two functions posting the same shape·bound·quant books do mechanically the same thing, but may
+       be entirely different code. Over-produces by design; open the source to judge.
+       <b>${m.groups}</b> groups · <b>${m.functions_in_groups}</b> functions ·
+       <b>${m.removable_loc_total}</b> LOC if every group collapsed to one implementation.</div>` +
+      (d.twins || []).slice(0, 150).map(t => `
+        <div class="tw">
+          <div class="hd">
+            <span class="cnt">×${t.count}</span>
+            <span class="loc">${t.removable_loc} LOC removable</span>
+            <span style="color:var(--text-dim)">of ${t.total_loc}</span>
+            <span style="margin-left:auto;color:var(--text-dim)">${t.sig_len} claims in signature</span>
+          </div>
+          <div class="sig">${t.signature.map(s => tag(s.shape) +
+              `<span style="color:var(--text-dim)">${esc(s.bound || "")}</span>`).join(" ")}</div>
+          <div class="mem">
+            ${t.members.map(mm => `
+              <span class="fn">${esc(mm.fn)} <small>${esc(mm.file)}</small></span>
+              <span class="num">${mm.loc} loc</span>
+              <span class="num">${mm.callers} callers</span>
+              <a href="${esc(srcUrl(mm.file, mm.line))}" target="_blank" rel="noopener">L${mm.line ?? "?"} ↗</a>`).join("")}
+          </div>
+        </div>`).join("");
+  });
+}
+function showBrowse() {
+  document.getElementById("twins").style.display = "none";
+  document.getElementById("columns").style.display = "flex";
+  document.getElementById("crumbs").style.display = "flex";
+  document.getElementById("tabBrowse").classList.add("on");
+  document.getElementById("tabTwins").classList.remove("on");
+}
+document.getElementById("tabTwins").onclick = e => { e.preventDefault(); showTwins(); };
+document.getElementById("tabBrowse").onclick = e => { e.preventDefault(); showBrowse(); };
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && state.path.length) {
