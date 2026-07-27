@@ -142,7 +142,7 @@ const shortFile = f => String(f || "").replace(/^.*?\/(?=[^/]+\/[^/]+$)/, "");
 
 let CLAIMS = [], META = {}, selShape = null, selFile = null, selMod = null;
 
-fetch("../data/summary.json").then(r => r.json()).then(d => {
+fetch("data/summary.json").then(r => r.json()).then(d => {
   META = d.meta || {};
   CLAIMS = d.claims || [];
   render();

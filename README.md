@@ -111,9 +111,9 @@ one.
 ## Layout
 
 ```
-data/summary.json     the page's data — a projection of the claims
-data/artifacts/       the raw mechanical_claims per module + the walked ledger, gzipped
 docs/index.html       the static viewer (no build step, no dependencies)
+docs/data/summary.json    the page's data — a projection of the claims
+docs/data/artifacts/      the raw mechanical_claims per module + the walked ledger, gzipped
 slice_ground.py       whole ground -> per-module grounds (streaming, constant memory)
 build_summary.py      artifacts -> summary.json
 ```
@@ -121,7 +121,7 @@ build_summary.py      artifacts -> summary.json
 Regenerate the page data with:
 
 ```sh
-python3 build_summary.py data/artifacts data/summary.json
+python3 build_summary.py docs/data/artifacts docs/data/summary.json
 ```
 
 ## Not here
