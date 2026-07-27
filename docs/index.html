@@ -155,7 +155,11 @@
     position: absolute; left: 10px; bottom: 8px; z-index: 3; max-width: 46%;
     background: rgba(16,20,29,.9); border: 1px solid var(--border); border-radius: 5px;
     padding: 5px 8px; font-size: 10.5px; color: var(--text-dim); line-height: 1.5;
+    cursor: pointer;
   }
+  #atlas .note:hover { border-color: var(--accent); }
+  /* On a laptop window the legend covers a whole continent — one click parks it. */
+  #atlas .note.min { max-height: 20px; overflow: hidden; max-width: 240px; }
   #atlas .note b { color: var(--text); font-weight: 600; }
   #atlas .legend {
     position: absolute; right: 10px; top: 8px; z-index: 3;
@@ -776,6 +780,10 @@ function atNote() {
     AT.minW = +sl.value; AT.hover = null; atBuild();
   };
   document.getElementById("atFit").onclick = atFit;
+  const note = document.getElementById("atNote");
+  note.title = "click to collapse";
+  note.onclick = () => note.classList.toggle("min");
+  if (innerWidth < 1100) note.classList.add("min");
 
   const c = document.getElementById("cnv");
   let dragging = false, lx = 0, ly = 0, moved = 0;
