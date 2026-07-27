@@ -111,18 +111,28 @@ one.
 ## Layout
 
 ```
-docs/index.html       the static viewer (no build step, no dependencies)
+docs/index.html           the static viewer (no build step, no dependencies)
 docs/data/summary.json    the page's data — a projection of the claims
+docs/data/graph.json      file-level call graph for the atlas view
+docs/data/calls/          per-file call lists, one shard per source file
+docs/data/twins.json      structural-twin groups
 docs/data/artifacts/      the raw mechanical_claims per module + the walked ledger, gzipped
-slice_ground.py       whole ground -> per-module grounds (streaming, constant memory)
-build_summary.py      artifacts -> summary.json
+slice_ground.py           whole ground -> per-module grounds (streaming, constant memory)
+build_summary.py          artifacts -> summary.json
+build_graph.py            slices -> file-level graph
+build_calls.py            slices -> per-file call shards
+find_twins.py             claims -> structural twins
 ```
 
-Regenerate the page data with:
+Regeneration commands are in [BREAKPOINT.md §6](BREAKPOINT.md#6--reproduce).
 
-```sh
-python3 build_summary.py docs/data/artifacts docs/data/summary.json
-```
+## The record
+
+- **[HISTORY.md](HISTORY.md)** — how this analysis was produced, in order, including every defect
+  found on the way. All of them exited 0 and returned a plausible number; none announced itself.
+- **[BREAKPOINT.md](BREAKPOINT.md)** — where the work stands: what is covered (29% of the
+  non-test code), what is deliberately absent, the known limits on reading any number here, and
+  the open work.
 
 ## Not here
 

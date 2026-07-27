@@ -155,7 +155,9 @@ def main(argv):
     twins.sort(key=lambda t: (-t["removable_loc"], -t["sig_len"]))
     doc = {
         "meta": {
-            "source_claims": str(claims_p),
+            # basename only — these artifacts are published, and the operator's
+            # mount layout is private deployment detail, not part of the result
+            "source_claims": claims_p.name,
             "min_claims": min_claims,
             "groups": len(twins),
             "functions_in_groups": sum(t["count"] for t in twins),
