@@ -8,7 +8,8 @@
   :root {
     --bg: #0b0e14; --bg-panel: #10141d; --bg-col: #0e1219;
     --bg-row-hover: #1a2130; --bg-row-sel: #1d2a3f;
-    --border: #1f2735; --text: #cdd6e4; --text-dim: #7a8699;
+    --border: #1f2735; --text: #dde5f0; --text-dim: #93a1b8;
+    --text-bright: #eef3fa; --text-mid: #a7b4c9;
     --accent: #35d0ba; --accent2: #c274e8; --num: #e5b567;
     --str: #9ece6a; --key: #8fb8e8;
     --err: #f7768e; --warn: #e0af68; --info: #7aa2f7; --ok: #9ece6a;
@@ -106,20 +107,25 @@
     padding: 3px 8px; cursor: pointer;
   }
 
-  .calls { border-bottom: 1px solid var(--border); background: var(--bg); }
-  .calls .hd { padding: 5px 10px; font-size: 11px; color: var(--text-dim);
-               display: flex; gap: 8px; align-items: baseline; }
-  .calls .hd b { color: var(--accent); font-weight: 600; }
+  .calls { border-bottom: 1px solid var(--border); background: var(--bg);
+           display: flex; flex-direction: column; max-height: 46%; flex: none; }
+  .calls .hd { padding: 5px 10px; font-size: 11px; color: var(--text-bright);
+               display: flex; gap: 8px; align-items: baseline; flex: none; }
+  .calls .hd b { color: var(--accent); font-weight: 700; }
   .calls .warn { color: var(--warn); }
-  .calls .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1px; background: var(--border); }
-  .calls .side { background: var(--bg); padding: 4px 0 6px; min-height: 40px; }
-  .calls .side h4 { margin: 0; padding: 2px 10px 4px; font-size: 10px; font-weight: 600;
-                    color: var(--text-dim); text-transform: lowercase; }
-  .calls .ln { padding: 2px 10px; font-size: 11.5px; cursor: pointer;
-               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .calls .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1px;
+                 background: var(--border); overflow: hidden; min-height: 0; flex: 1; }
+  .calls .side { background: var(--bg); padding: 4px 0 6px; min-height: 40px;
+                 overflow-y: auto; }
+  .calls .side h4 { margin: 0; padding: 2px 10px 4px; font-size: 10px; font-weight: 700;
+                    color: var(--text-bright); text-transform: lowercase;
+                    position: sticky; top: 0; background: var(--bg); }
+  .calls .ln { padding: 2px 10px; font-size: 12px; cursor: pointer;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+               color: var(--text-bright); }
   .calls .ln:hover { background: var(--bg-row-hover); color: var(--accent); }
-  .calls .ln small { color: var(--text-dim); }
-  .calls .none { padding: 2px 10px; font-size: 11.5px; color: var(--text-dim); }
+  .calls .ln small { color: var(--text-mid); }
+  .calls .none { padding: 2px 10px; font-size: 12px; color: var(--text-mid); }
   .claim { padding: 7px 10px; border-bottom: 1px solid rgba(31,39,53,.5); font-size: 12px; }
   .claim .top { display: flex; gap: 7px; align-items: baseline; }
   .claim .fn { color: var(--str); overflow: hidden; text-overflow: ellipsis; }
@@ -206,6 +212,7 @@
   <canvas id="cnv"></canvas>
   <div class="bar">
     <div class="grp" id="atScope"></div>
+    <div class="grp"><button id="atNoTests">hide tests</button></div>
     <div class="grp" id="atLayout"></div>
     <div class="grp"><label>min calls</label><input type="range" id="atMinW" min="1" max="20" value="1">
       <span id="atMinWv" style="color:var(--num);width:16px">1</span></div>
@@ -240,7 +247,7 @@ const el = (t, cls, txt) => {
   return n;
 };
 
-let META = {}, TREE = {}, CLAIMS = [], CG = null, cgPending = null;
+let META = {}, TREE = {}, CLAIMS = [], CG = {}, cgPending = {};
 // path = [module, file, function] — the drill-down, one segment per column
 const state = { path: [], colUI: {} };
 
@@ -404,17 +411,20 @@ function buildColumn(depth, parent) {
   return col;
 }
 
-// The full graph is ~4M edges; only the ego network is useful at review time,
-// and it is 13.9 MB, so it loads on first function selection rather than upfront.
-function ensureCallgraph(cb) {
-  if (CG) return cb();
-  if (!cgPending) cgPending = fetch("data/callgraph.json").then(r => r.json())
-    .then(d => { CG = d.graph || {}; CG._meta = d.meta || {}; })
-    .catch(() => { CG = {}; });
-  cgPending.then(cb);
+// Call lists are complete, not capped — which is only affordable because they
+// are sharded one file at a time (~53 KB each) instead of one 14.6 MB payload.
+// Shard names mirror build_calls.py exactly, so no manifest round-trip.
+const shardName = f => f.replace(/\//g, "__").replace(/[^A-Za-z0-9_.-]/g, "_") + ".json";
+function ensureCalls(file, cb) {
+  if (CG[file]) return cb(CG[file]);
+  if (!cgPending[file]) cgPending[file] = fetch("data/calls/" + shardName(file))
+    .then(r => r.ok ? r.json() : { fns: {}, paths: [] })
+    .then(d => (CG[file] = d))
+    .catch(() => (CG[file] = { fns: {}, paths: [] }));
+  cgPending[file].then(cb);
 }
 
-function buildCalls(fn) {
+function buildCalls(fn, file) {
   const wrap = el("div", "calls");
   const hd = el("div", "hd");
   hd.textContent = "calls";
@@ -422,33 +432,39 @@ function buildCalls(fn) {
   const host = el("div", "cols");
   wrap.appendChild(host);
 
-  ensureCallgraph(() => {
-    const g = (CG || {})[fn];
+  ensureCalls(file, d => {
+    const g = (d.fns || {})[fn], P = d.paths || [];
     if (!g) { hd.innerHTML = `<span>calls</span><span class="none">no edges recorded</span>`; return; }
     const ins = g.in || [], outs = g.out || [];
     hd.innerHTML = `<span>calls</span>` +
-      `<b>${g.in_total}</b><span>callers</span><b>${g.out_total}</b><span>callees</span>` +
-      ((g.in_total > ins.length || g.out_total > outs.length)
-        ? `<span class="warn">lists capped at ${Math.max(ins.length, outs.length)}</span>` : ``) +
-      // graph ids are BARE NAMES, so a common accessor merges every same-named
-      // function in the tree. Say so where the number would otherwise mislead.
-      (g.in_total > 500 ? `<span class="warn">· generic name — callers merged across the tree</span>` : ``);
+      `<b>${ins.length.toLocaleString()}</b><span>callers</span>` +
+      `<b>${outs.length.toLocaleString()}</b><span>callees</span>` +
+      // A fan-in in the thousands is the analyser binding every call of a common
+      // name (`get`, `run`) to one definition — not a real dependency count.
+      (ins.length > 800 ? `<span class="warn">· fan-in this wide is name-resolution collapse in the analyser, not real callers</span>` : ``);
 
-    const side = (title, arr, total) => {
-      const d = el("div", "side");
-      d.appendChild(el("h4", null, `${title} (${total})`));
-      if (!arr.length) { d.appendChild(el("div", "none", "none")); return d; }
-      for (const n of arr) {
+    const side = (title, arr) => {
+      const d2 = el("div", "side");
+      d2.appendChild(el("h4", null, `${title} (${arr.length.toLocaleString()})`));
+      if (!arr.length) { d2.appendChild(el("div", "none", "none")); return d2; }
+      // Built in one synchronous pass on purpose. Spreading it over animation
+      // frames looks smoother but stops dead if the tab is backgrounded, and a
+      // list that quietly ends at row 400 of 9,095 is worse than a slow one.
+      const frag = document.createDocumentFragment();
+      for (const [nm, pi] of arr) {
+        const fp = P[pi] || "";
         const r = el("div", "ln");
-        r.innerHTML = `${esc(n.fn)} <small>${esc(String(n.file).split("/").pop())}</small>`;
-        r.title = n.file;
-        r.onclick = () => jumpTo(n.fn, n.file);
-        d.appendChild(r);
+        r.textContent = nm + " ";
+        r.appendChild(el("small", null, fp.split("/").pop()));
+        r.title = fp;
+        r.onclick = () => jumpTo(nm, fp);
+        frag.appendChild(r);
       }
-      return d;
+      d2.appendChild(frag);
+      return d2;
     };
-    host.appendChild(side("callers", ins, g.in_total));
-    host.appendChild(side("callees", outs, g.out_total));
+    host.appendChild(side("callers", ins));
+    host.appendChild(side("callees", outs));
   });
   return wrap;
 }
@@ -472,7 +488,7 @@ function buildClaims(list) {
   head.appendChild(el("span", "name", "claims"));
   head.appendChild(el("span", null, String(list.length)));
   col.appendChild(head);
-  if (list[0] && list[0].fn) col.appendChild(buildCalls(list[0].fn));
+  if (list[0] && list[0].fn) col.appendChild(buildCalls(list[0].fn, list[0].file));
   const body = el("div", "col-body");
   body.innerHTML = list.map(c => `
     <div class="claim">
@@ -494,7 +510,7 @@ const MOD_COLORS = ["#35d0ba", "#c274e8", "#7aa2f7", "#e0af68", "#9ece6a",
                     "#f7768e", "#2ac3de", "#bb9af7", "#ff9e64", "#73daca"];
 const AT = {
   raw: null, nodes: [], edges: [], byMod: new Map(), color: new Map(), off: new Set(),
-  scope: "pub", layout: "atlas", minW: 1, alpha: 0, raf: 0,
+  scope: "pub", layout: "atlas", minW: 1, alpha: 0, raf: 0, noTests: false, hidTests: 0,
   k: 1, tx: 0, ty: 0, hover: null, drawn: 0, capped: 0, ready: false,
 };
 const AT_CAP = 40000;   // edges drawn per frame; beyond this the picture is mush anyway
@@ -506,9 +522,20 @@ function atLoad() {
     .catch(e => { document.getElementById("atNote").textContent = "could not load graph.json: " + e; });
 }
 
+// Tests are 2,839 of the 4,687 files and sit on 60% of the edges, so with them
+// in, the wide scope is mostly a picture of the test suite. None of them carry
+// published claims, so this toggle changes nothing in the published scope.
+const IS_TEST = /(^|\/)tests?(\/|$)|(^|\/)test_[^/]*$|_test$|\.test$|(^|\/)conftest$|(^|\/)spec\/|\.spec$/;
+
 function atBuild() {
   const raw = AT.raw, keep = new Set();
-  for (const n of raw.nodes) if (AT.scope === "all" || n.pub) keep.add(n.i);
+  let hidTests = 0;
+  for (const n of raw.nodes) {
+    if (AT.scope !== "all" && !n.pub) continue;
+    if (AT.noTests && IS_TEST.test(n.f)) { hidTests++; continue; }
+    keep.add(n.i);
+  }
+  AT.hidTests = hidTests;
   // In "all" scope a node earns its place by having a retained edge; isolated
   // call targets would just be noise on the rim.
   const edges = [];
@@ -695,7 +722,7 @@ function atDraw() {
     // Alpha has to stay low: tens of thousands of overlapping strokes accumulate,
     // and anything more generous turns the whole field into fog.
     g.strokeStyle = touch ? (p === h ? "rgba(53,208,186,.85)" : "rgba(194,116,232,.85)")
-                          : `rgba(122,134,153,${Math.min(0.34, 0.025 + e.w / 260)})`;
+                          : `rgba(147,161,184,${Math.min(0.34, 0.025 + e.w / 260)})`;
     g.lineWidth = touch ? 1.4 : 1;
     g.beginPath(); g.moveTo(X(p), Y(p)); g.lineTo(X(q), Y(q)); g.stroke();
   }
@@ -733,7 +760,7 @@ function atDraw() {
     if (n !== h && placed.some(p => r[0] < p[2] && r[2] > p[0] && r[1] < p[3] && r[3] > p[1])) continue;
     placed.push(r); used++;
     g.globalAlpha = n === h ? 1 : h ? 0.75 : 0.82;
-    g.fillStyle = n === h ? "#fff" : "#cdd6e4";
+    g.fillStyle = n === h ? "#fff" : "#dde5f0";
     g.fillText(txt, x, y);
   }
   g.globalAlpha = 1;
@@ -744,6 +771,8 @@ function atNote() {
   document.getElementById("atNote").innerHTML =
     `<b>${n}</b> files · <b>${e.toLocaleString()}</b> links` +
     (AT.capped ? ` <span style="color:var(--warn)">(top ${AT_CAP.toLocaleString()} drawn)</span>` : ``) +
+    (AT.hidTests ? ` · <b>${AT.hidTests.toLocaleString()}</b> test files hidden` : ``) +
+    (AT.noTests && !AT.hidTests ? ` · <span style="color:var(--text-dim)">no test files in this scope</span>` : ``) +
     (AT.alpha ? ` · sim α=${AT.alpha.toFixed(3)}` : ``) +
     `<br>files aggregated from <b>${(m.function_edges || 0).toLocaleString()}</b> function calls; ` +
     `link weight = distinct calls between two files. ` +
@@ -780,6 +809,11 @@ function atNote() {
     AT.minW = +sl.value; AT.hover = null; atBuild();
   };
   document.getElementById("atFit").onclick = atFit;
+  const nt = document.getElementById("atNoTests");
+  nt.onclick = () => {
+    AT.noTests = !AT.noTests; nt.classList.toggle("on", AT.noTests);
+    AT.hover = null; atBuild();
+  };
   const note = document.getElementById("atNote");
   note.title = "click to collapse";
   note.onclick = () => note.classList.toggle("min");

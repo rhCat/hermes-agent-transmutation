@@ -1,0 +1,1 @@
+{"file":"agent/jiter_preload.py","paths":["tests/agent/test_jiter_preload","gateway/relay/descriptor.py","hermes_cli/goals.py"],"fns":{"preload_jiter_native_extension":{"in":[["test_preload_jiter_native_extension_is_best_effort",0],["test_preload_jiter_native_extension_loads_sdk_parser_dependency",0]],"out":[["from_json",1],["from_json",2]]}}}

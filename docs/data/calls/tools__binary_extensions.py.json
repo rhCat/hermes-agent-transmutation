@@ -1,0 +1,1 @@
+{"file":"tools/binary_extensions.py","paths":["tools/file_tools.py","agent/secret_sources/_cache.py","plugins/platforms/discord/recovery"],"fns":{"has_binary_extension":{"in":[["read_file_tool",0]],"out":[["path",1],["path",2]]}}}

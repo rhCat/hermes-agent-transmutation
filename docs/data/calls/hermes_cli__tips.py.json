@@ -1,0 +1,1 @@
+{"file":"hermes_cli/tips.py","paths":["gateway/slash_commands.py","cli","tests/hermes_cli/test_tips"],"fns":{"get_random_tip":{"in":[["_handle_reset_command",0],["process_command",1],["run",1],["test_randomness",2],["test_returns_string",2],["test_returns_tip_from_corpus",2],["test_tip_display_format",2],["test_tip_import_works",2]],"out":[]}}}

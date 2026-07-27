@@ -1,0 +1,1 @@
+{"file":"gateway/relay/transport.py","paths":["gateway/relay/adapter.py","tests/gateway/relay/test_ws_transport"],"fns":{"set_inbound_handler":{"in":[["connect",0],["test_inbound_frame_reaches_handler",1]],"out":[]}}}
