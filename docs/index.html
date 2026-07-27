@@ -106,18 +106,20 @@
     padding: 3px 8px; cursor: pointer;
   }
 
-  .ego { border-bottom: 1px solid var(--border); background: var(--bg); }
-  .ego .hd { padding: 5px 10px; font-size: 11px; color: var(--text-dim);
-             display: flex; gap: 8px; align-items: baseline; }
-  .ego .hd b { color: var(--accent); font-weight: 600; }
-  .ego .warn { color: var(--warn); }
-  .ego svg { display: block; width: 100%; }
-  .ego text { font: 10px "SF Mono", Menlo, monospace; }
-  .ego text.c { fill: var(--text); cursor: pointer; }
-  .ego text.c:hover { fill: var(--accent); text-decoration: underline; }
-  .ego text.mid { fill: var(--accent); font-weight: 700; }
-  .ego text.dim { fill: var(--text-dim); }
-  .ego line { stroke: #2b3648; }
+  .calls { border-bottom: 1px solid var(--border); background: var(--bg); }
+  .calls .hd { padding: 5px 10px; font-size: 11px; color: var(--text-dim);
+               display: flex; gap: 8px; align-items: baseline; }
+  .calls .hd b { color: var(--accent); font-weight: 600; }
+  .calls .warn { color: var(--warn); }
+  .calls .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1px; background: var(--border); }
+  .calls .side { background: var(--bg); padding: 4px 0 6px; min-height: 40px; }
+  .calls .side h4 { margin: 0; padding: 2px 10px 4px; font-size: 10px; font-weight: 600;
+                    color: var(--text-dim); text-transform: lowercase; }
+  .calls .ln { padding: 2px 10px; font-size: 11.5px; cursor: pointer;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .calls .ln:hover { background: var(--bg-row-hover); color: var(--accent); }
+  .calls .ln small { color: var(--text-dim); }
+  .calls .none { padding: 2px 10px; font-size: 11.5px; color: var(--text-dim); }
   .claim { padding: 7px 10px; border-bottom: 1px solid rgba(31,39,53,.5); font-size: 12px; }
   .claim .top { display: flex; gap: 7px; align-items: baseline; }
   .claim .fn { color: var(--str); overflow: hidden; text-overflow: ellipsis; }
@@ -128,6 +130,50 @@
   .tag { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700;
          white-space: nowrap; flex: none; }
   .q { color: var(--text-dim); font-size: 10px; flex: none; }
+
+  #atlas { flex: 1; display: none; position: relative; min-height: 0; overflow: hidden; }
+  /* width/height are NOT optional: canvas is a replaced element, so `inset:0`
+     alone leaves it at its intrinsic 300×150 and the map draws into a stamp. */
+  #atlas canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+  #atlas canvas.drag { cursor: grabbing; }
+  #atlas .bar {
+    position: absolute; top: 8px; left: 10px; z-index: 3; display: flex;
+    gap: 5px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 20px);
+  }
+  #atlas .bar .grp { display: flex; gap: 4px; align-items: center;
+                     background: rgba(16,20,29,.9); border: 1px solid var(--border);
+                     border-radius: 5px; padding: 3px 6px; }
+  #atlas .bar label { color: var(--text-dim); font-size: 10.5px; }
+  #atlas button {
+    background: transparent; color: var(--text-dim); border: 1px solid transparent;
+    border-radius: 3px; font: inherit; font-size: 11px; padding: 1px 7px; cursor: pointer;
+  }
+  #atlas button:hover { color: var(--accent); }
+  #atlas button.on { color: var(--accent); border-color: var(--accent); }
+  #atlas input[type=range] { width: 90px; accent-color: var(--accent); }
+  #atlas .note {
+    position: absolute; left: 10px; bottom: 8px; z-index: 3; max-width: 46%;
+    background: rgba(16,20,29,.9); border: 1px solid var(--border); border-radius: 5px;
+    padding: 5px 8px; font-size: 10.5px; color: var(--text-dim); line-height: 1.5;
+  }
+  #atlas .note b { color: var(--text); font-weight: 600; }
+  #atlas .legend {
+    position: absolute; right: 10px; top: 8px; z-index: 3;
+    background: rgba(16,20,29,.9); border: 1px solid var(--border); border-radius: 5px;
+    padding: 5px 8px; font-size: 10.5px; color: var(--text-dim);
+  }
+  #atlas .legend div { display: flex; align-items: center; gap: 5px; padding: 1px 0; cursor: pointer; }
+  #atlas .legend div:hover { color: var(--text); }
+  #atlas .legend i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  #atlas .legend div.off { opacity: .35; }
+  #atlas .tip {
+    position: absolute; z-index: 4; pointer-events: none; display: none;
+    background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 5px;
+    padding: 5px 8px; font-size: 11px; max-width: 340px; line-height: 1.55;
+  }
+  #atlas .tip .t { color: var(--accent); word-break: break-all; }
+  #atlas .tip .d { color: var(--text-dim); }
+  #atlas .tip .d b { color: var(--text); font-weight: 400; }
 
   footer {
     flex: none; padding: 6px 14px; border-top: 1px solid var(--border);
@@ -143,6 +189,7 @@
   <div class="src" id="src">loading…</div>
   <div class="spacer"></div>
   <a href="#" id="tabBrowse" class="tab on">browse</a>
+  <a href="#" id="tabAtlas" class="tab">atlas</a>
   <a href="#" id="tabTwins" class="tab">similar functions</a>
   <a href="https://github.com/rhCat/hermes-agent-transmutation" target="_blank" rel="noopener">method ↗</a>
   <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener">source ↗</a>
@@ -151,6 +198,19 @@
 <div class="stats" id="stats"></div>
 <div id="crumbs"></div>
 <div id="columns"></div>
+<div id="atlas">
+  <canvas id="cnv"></canvas>
+  <div class="bar">
+    <div class="grp" id="atScope"></div>
+    <div class="grp" id="atLayout"></div>
+    <div class="grp"><label>min calls</label><input type="range" id="atMinW" min="1" max="20" value="1">
+      <span id="atMinWv" style="color:var(--num);width:16px">1</span></div>
+    <div class="grp"><button id="atFit">fit</button></div>
+  </div>
+  <div class="legend" id="atLegend"></div>
+  <div class="note" id="atNote">loading graph…</div>
+  <div class="tip" id="atTip"></div>
+</div>
 <div id="twins"></div>
 <footer id="foot"></footer>
 
@@ -350,46 +410,41 @@ function ensureCallgraph(cb) {
   cgPending.then(cb);
 }
 
-function buildEgo(fn) {
-  const wrap = el("div", "ego");
+function buildCalls(fn) {
+  const wrap = el("div", "calls");
   const hd = el("div", "hd");
-  hd.innerHTML = `<span>call graph</span>`;
+  hd.textContent = "calls";
   wrap.appendChild(hd);
-  const host = el("div");
+  const host = el("div", "cols");
   wrap.appendChild(host);
 
   ensureCallgraph(() => {
     const g = (CG || {})[fn];
-    if (!g) { hd.innerHTML = `<span>call graph</span><span class="dim">no edges recorded</span>`; return; }
+    if (!g) { hd.innerHTML = `<span>calls</span><span class="none">no edges recorded</span>`; return; }
     const ins = g.in || [], outs = g.out || [];
-    hd.innerHTML = `<span>call graph</span>` +
+    hd.innerHTML = `<span>calls</span>` +
       `<b>${g.in_total}</b><span>callers</span><b>${g.out_total}</b><span>callees</span>` +
       ((g.in_total > ins.length || g.out_total > outs.length)
-        ? `<span class="warn">showing first ${Math.max(ins.length, outs.length)} — truncated</span>` : ``) +
-      // ids in the graph are BARE NAMES, so a common accessor merges every
-      // same-named function in the tree. Say so where it misleads most.
-      (g.in_total > 500 ? `<span class="warn">· generic name: callers likely merged across the tree</span>` : ``);
+        ? `<span class="warn">lists capped at ${Math.max(ins.length, outs.length)}</span>` : ``) +
+      // graph ids are BARE NAMES, so a common accessor merges every same-named
+      // function in the tree. Say so where the number would otherwise mislead.
+      (g.in_total > 500 ? `<span class="warn">· generic name — callers merged across the tree</span>` : ``);
 
-    const rows = Math.max(ins.length, outs.length, 1);
-    const H = Math.max(60, rows * 15 + 22), W = 640, midX = W / 2;
-    const y = i => 16 + i * 15;
-    const seg = (arr, x, anchor, dir) => arr.map((n, i) => `
-      <line x1="${dir < 0 ? x + 4 : midX + 46}" y1="${y(i) - 3}"
-            x2="${dir < 0 ? midX - 46 : x - 4}" y2="${H / 2 - 3}"/>
-      <text class="c" x="${x}" y="${y(i)}" text-anchor="${anchor}"
-            data-fn="${esc(n.fn)}" data-file="${esc(n.file)}">${esc(n.fn)}</text>`).join("");
-    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">
-      ${seg(ins, midX - 60, "end", -1)}
-      ${seg(outs, midX + 60, "start", 1)}
-      <text class="mid" x="${midX}" y="${H / 2}" text-anchor="middle">${esc(fn)}</text>
-      <text class="dim" x="${midX - 60}" y="10" text-anchor="end">callers</text>
-      <text class="dim" x="${midX + 60}" y="10" text-anchor="start">callees</text>
-    </svg>`;
-    host.querySelectorAll("text.c").forEach(t => {
-      t.onclick = () => jumpTo(t.dataset.fn, t.dataset.file);
-      t.append(document.createTextNode(""));
-      t.setAttribute("title", t.dataset.file || "");
-    });
+    const side = (title, arr, total) => {
+      const d = el("div", "side");
+      d.appendChild(el("h4", null, `${title} (${total})`));
+      if (!arr.length) { d.appendChild(el("div", "none", "none")); return d; }
+      for (const n of arr) {
+        const r = el("div", "ln");
+        r.innerHTML = `${esc(n.fn)} <small>${esc(String(n.file).split("/").pop())}</small>`;
+        r.title = n.file;
+        r.onclick = () => jumpTo(n.fn, n.file);
+        d.appendChild(r);
+      }
+      return d;
+    };
+    host.appendChild(side("callers", ins, g.in_total));
+    host.appendChild(side("callees", outs, g.out_total));
   });
   return wrap;
 }
@@ -413,7 +468,7 @@ function buildClaims(list) {
   head.appendChild(el("span", "name", "claims"));
   head.appendChild(el("span", null, String(list.length)));
   col.appendChild(head);
-  if (list[0] && list[0].fn) col.appendChild(buildEgo(list[0].fn));
+  if (list[0] && list[0].fn) col.appendChild(buildCalls(list[0].fn));
   const body = el("div", "col-body");
   body.innerHTML = list.map(c => `
     <div class="claim">
@@ -427,14 +482,387 @@ function buildClaims(list) {
   return col;
 }
 
+/* ── atlas ────────────────────────────────────────────────────────────────
+   File-level call graph on a canvas. The unit is the FILE, not the function:
+   994k function edges is a hairball, 535 published files with weighted links
+   is a map. Own force sim, own layouts, no libraries.                       */
+const MOD_COLORS = ["#35d0ba", "#c274e8", "#7aa2f7", "#e0af68", "#9ece6a",
+                    "#f7768e", "#2ac3de", "#bb9af7", "#ff9e64", "#73daca"];
+const AT = {
+  raw: null, nodes: [], edges: [], byMod: new Map(), color: new Map(), off: new Set(),
+  scope: "pub", layout: "atlas", minW: 1, alpha: 0, raf: 0,
+  k: 1, tx: 0, ty: 0, hover: null, drawn: 0, capped: 0, ready: false,
+};
+const AT_CAP = 40000;   // edges drawn per frame; beyond this the picture is mush anyway
+
+function atLoad() {
+  if (AT.raw) return atBuild();
+  document.getElementById("atNote").textContent = "loading data/graph.json (3.8 MB)…";
+  fetch("data/graph.json").then(r => r.json()).then(d => { AT.raw = d; atBuild(); })
+    .catch(e => { document.getElementById("atNote").textContent = "could not load graph.json: " + e; });
+}
+
+function atBuild() {
+  const raw = AT.raw, keep = new Set();
+  for (const n of raw.nodes) if (AT.scope === "all" || n.pub) keep.add(n.i);
+  // In "all" scope a node earns its place by having a retained edge; isolated
+  // call targets would just be noise on the rim.
+  const edges = [];
+  for (const [a, b, w] of raw.edges) {
+    if (w < AT.minW || !keep.has(a) || !keep.has(b)) continue;
+    edges.push([a, b, w]);
+  }
+  const live = new Set();
+  for (const [a, b] of edges) { live.add(a); live.add(b); }
+  const nodes = raw.nodes.filter(n => keep.has(n.i) && (live.has(n.i) || AT.scope === "pub"));
+  const pos = new Map(nodes.map((n, j) => [n.i, j]));
+
+  const deg = new Float64Array(nodes.length);
+  for (const [a, b, w] of edges) {
+    const x = pos.get(a), y = pos.get(b);
+    if (x != null) deg[x] += w;
+    if (y != null) deg[y] += w;
+  }
+  AT.nodes = nodes.map((n, j) => ({
+    ...n, j, deg: deg[j], x: 0, y: 0, vx: 0, vy: 0,
+    r: Math.max(2.2, Math.min(15, 2 + Math.sqrt(n.c || 0) * 0.85 + Math.sqrt(deg[j]) * 0.22)),
+  }));
+  AT.edges = edges.map(([a, b, w]) => ({ a: pos.get(a), b: pos.get(b), w }))
+                  .filter(e => e.a != null && e.b != null);
+  AT.edges.sort((p, q) => q.w - p.w);
+  AT.capped = Math.max(0, AT.edges.length - AT_CAP);
+
+  AT.byMod = new Map();
+  for (const n of AT.nodes) {
+    if (!AT.byMod.has(n.m)) AT.byMod.set(n.m, []);
+    AT.byMod.get(n.m).push(n);
+  }
+  const mods = [...AT.byMod.keys()].sort((a, b) => AT.byMod.get(b).length - AT.byMod.get(a).length);
+  AT.color = new Map(mods.map((m, i) => [m, MOD_COLORS[i % MOD_COLORS.length]]));
+  AT.ready = true;
+  if (AT.needFit) AT.needFit();     // a new scope deserves a fresh viewport
+  atLegend(mods);
+  atLayout();
+  atNote();
+}
+
+function atLegend(mods) {
+  const host = document.getElementById("atLegend");
+  host.textContent = "";
+  for (const m of mods.slice(0, 12)) {
+    const d = el("div", AT.off.has(m) ? "off" : null);
+    const i = el("i"); i.style.background = AT.color.get(m);
+    d.appendChild(i);
+    d.appendChild(el("span", null, `${m} (${AT.byMod.get(m).length})`));
+    d.onclick = () => { AT.off.has(m) ? AT.off.delete(m) : AT.off.add(m); atLegend(mods); atDraw(); };
+    host.appendChild(d);
+  }
+}
+
+// Deterministic layouts settle instantly; force is opt-in because on the full
+// scope it has thousands of bodies to move.
+function atLayout() {
+  const N = AT.nodes;
+  if (!N.length) return atDraw();
+  if (AT.layout === "grid") {
+    const cols = Math.ceil(Math.sqrt(N.length));
+    const sorted = [...N].sort((a, b) => a.m < b.m ? -1 : a.m > b.m ? 1 : (a.f < b.f ? -1 : 1));
+    sorted.forEach((n, i) => { n.x = (i % cols) * 26 - cols * 13; n.y = Math.floor(i / cols) * 26 - cols * 13; });
+  } else {
+    // atlas: modules on a ring, each a phyllotaxis disc with its hubs at centre.
+    // Arc is allocated by disc radius, not per-module equally — with one module
+    // 260× another, equal slices let the big continent swallow the map.
+    const C = 9;                                   // phyllotaxis constant ⇒ uniform density
+    const mods = [...AT.byMod.entries()].sort((a, b) => b[1].length - a[1].length)
+      .map(([m, list]) => ({ m, list, rad: C * Math.sqrt(list.length) + 12 }));
+    const sum = mods.reduce((t, d) => t + d.rad, 0);
+    const maxR = Math.max(...mods.map(d => d.rad));
+    const R = Math.max(140, maxR * 2.0, sum * 2 * 1.15 / (Math.PI * 2));
+    let acc = 0;
+    for (const d of mods) {
+      const a = (acc + d.rad / 2) / sum * Math.PI * 2 - Math.PI / 2;
+      acc += d.rad;
+      const cx = Math.cos(a) * R, cy = Math.sin(a) * R;
+      [...d.list].sort((p, q) => q.deg - p.deg).forEach((n, i) => {
+        const t = i * 2.399963229728653, rr = C * Math.sqrt(i + 0.5);
+        n.x = cx + Math.cos(t) * rr; n.y = cy + Math.sin(t) * rr;
+      });
+    }
+    if (AT.layout === "force") { AT.alpha = 1; atRun(); return; }
+  }
+  AT.alpha = 0;
+  atFit();
+}
+
+function atTick() {
+  const N = AT.nodes, E = AT.edges, a = AT.alpha;
+  const CELL = 46, REP = 900, LINK = 34;
+  const buckets = new Map();
+  for (const n of N) {
+    const key = ((n.x / CELL) | 0) + "," + ((n.y / CELL) | 0);
+    let b = buckets.get(key); if (!b) buckets.set(key, b = []);
+    b.push(n);
+  }
+  for (const n of N) { n.vx *= 0.84; n.vy *= 0.84; }
+  // Repulsion only within the 3×3 cell neighbourhood — O(n·k) instead of O(n²),
+  // which is what makes the 4,687-node scope movable at all.
+  for (const n of N) {
+    const cx = (n.x / CELL) | 0, cy = (n.y / CELL) | 0;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const b = buckets.get((cx + i) + "," + (cy + j));
+      if (!b) continue;
+      for (const m of b) {
+        if (m === n) continue;
+        let dx = n.x - m.x, dy = n.y - m.y, d2 = dx * dx + dy * dy;
+        if (d2 > CELL * CELL * 4) continue;
+        if (d2 < 0.01) { dx = ((n.j % 7) - 3) * 0.3; dy = ((n.j % 5) - 2) * 0.3; d2 = 0.5; }
+        const f = (REP / d2) * a;
+        n.vx += dx * f; n.vy += dy * f;
+      }
+    }
+  }
+  for (const e of E) {
+    const p = N[e.a], q = N[e.b];
+    let dx = q.x - p.x, dy = q.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const f = (d - LINK) * 0.012 * Math.min(3, Math.log2(1 + e.w)) * a / d;
+    dx *= f; dy *= f;
+    p.vx += dx; p.vy += dy; q.vx -= dx; q.vy -= dy;
+  }
+  for (const n of N) {
+    n.vx -= n.x * 0.0022 * a; n.vy -= n.y * 0.0022 * a;   // gravity
+    n.x += Math.max(-9, Math.min(9, n.vx));
+    n.y += Math.max(-9, Math.min(9, n.vy));
+  }
+  AT.alpha *= 0.9835;
+}
+
+function atRun() {
+  cancelAnimationFrame(AT.raf);
+  const step = () => {
+    if (AT.alpha > 0.008) { atTick(); atDraw(); atNote(); AT.raf = requestAnimationFrame(step); }
+    else { AT.alpha = 0; atDraw(); atNote(); }
+  };
+  atFit(); step();
+}
+
+function atFit() {
+  const c = document.getElementById("cnv");
+  const N = AT.nodes.filter(n => !AT.off.has(n.m));
+  if (!N.length || !c.clientWidth) return atDraw();
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of N) { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y); }
+  const pad = 40;
+  AT.k = Math.min((c.clientWidth - pad * 2) / Math.max(1, x1 - x0),
+                  (c.clientHeight - pad * 2) / Math.max(1, y1 - y0));
+  AT.k = Math.max(0.05, Math.min(6, AT.k));
+  AT.tx = c.clientWidth / 2 - ((x0 + x1) / 2) * AT.k;
+  AT.ty = c.clientHeight / 2 - ((y0 + y1) / 2) * AT.k;
+  atDraw();
+}
+
+function atDraw() {
+  const c = document.getElementById("cnv");
+  if (!c.clientWidth) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== c.clientWidth * dpr || c.height !== c.clientHeight * dpr) {
+    c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  }
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, c.clientWidth, c.clientHeight);
+  if (!AT.ready) return;
+  const { k, tx, ty } = AT, N = AT.nodes;
+  const X = n => n.x * k + tx, Y = n => n.y * k + ty;
+  const vis = n => !AT.off.has(n.m);
+  const h = AT.hover;
+  const inc = h ? new Set() : null;
+
+  g.lineWidth = 1;
+  let drawn = 0;
+  for (const e of AT.edges) {
+    if (drawn >= AT_CAP) break;
+    const p = N[e.a], q = N[e.b];
+    if (!vis(p) || !vis(q)) continue;
+    const touch = h && (p === h || q === h);
+    if (h && !touch) continue;          // hovering isolates the file's own calls
+    if (touch) { inc.add(p); inc.add(q); }
+    drawn++;
+    // Alpha has to stay low: tens of thousands of overlapping strokes accumulate,
+    // and anything more generous turns the whole field into fog.
+    g.strokeStyle = touch ? (p === h ? "rgba(53,208,186,.85)" : "rgba(194,116,232,.85)")
+                          : `rgba(122,134,153,${Math.min(0.34, 0.025 + e.w / 260)})`;
+    g.lineWidth = touch ? 1.4 : 1;
+    g.beginPath(); g.moveTo(X(p), Y(p)); g.lineTo(X(q), Y(q)); g.stroke();
+  }
+  AT.drawn = drawn;
+
+  for (const n of N) {
+    if (!vis(n)) continue;
+    const x = X(n), y = Y(n), r = Math.max(1.4, n.r * Math.min(1.6, Math.sqrt(k)));
+    if (x < -30 || y < -30 || x > c.clientWidth + 30 || y > c.clientHeight + 30) continue;
+    g.beginPath(); g.arc(x, y, r, 0, 6.2832);
+    g.fillStyle = n.pub ? AT.color.get(n.m) : "#2b3648";
+    g.globalAlpha = h ? (n === h || inc.has(n) ? 1 : 0.16) : (n.pub ? 0.92 : 0.5);
+    g.fill();
+    if (n === h) { g.globalAlpha = 1; g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke(); }
+  }
+  g.globalAlpha = 1;
+
+  // Labels are rationed twice over: by rank (busiest files first) and by a
+  // coarse occupancy grid, so zooming out thins the text instead of stacking it
+  // into a smear. Hover always wins a label.
+  g.font = "10px ui-monospace, Menlo, monospace";
+  g.textAlign = "center"; g.textBaseline = "bottom";
+  const budget = k > 2.5 ? 400 : k > 1.2 ? 120 : k > 0.6 ? 45 : 16;
+  const placed = [];
+  const rank = h ? [h, ...[...inc].filter(n => n !== h)]
+                 : [...N].sort((p, q) => q.deg - p.deg);
+  let used = 0;
+  for (const n of rank) {
+    if (used >= budget && n !== h) break;
+    if (!vis(n)) continue;
+    const x = X(n), y = Y(n) - n.r * Math.min(1.6, Math.sqrt(k)) - 2;
+    if (x < 0 || y < 8 || x > c.clientWidth || y > c.clientHeight) continue;
+    const txt = n.f.split("/").pop();
+    const w = g.measureText(txt).width + 6, r = [x - w / 2, y - 11, x + w / 2, y + 1];
+    if (n !== h && placed.some(p => r[0] < p[2] && r[2] > p[0] && r[1] < p[3] && r[3] > p[1])) continue;
+    placed.push(r); used++;
+    g.globalAlpha = n === h ? 1 : h ? 0.75 : 0.82;
+    g.fillStyle = n === h ? "#fff" : "#cdd6e4";
+    g.fillText(txt, x, y);
+  }
+  g.globalAlpha = 1;
+}
+
+function atNote() {
+  const n = AT.nodes.length, e = AT.edges.length, m = (AT.raw && AT.raw.meta) || {};
+  document.getElementById("atNote").innerHTML =
+    `<b>${n}</b> files · <b>${e.toLocaleString()}</b> links` +
+    (AT.capped ? ` <span style="color:var(--warn)">(top ${AT_CAP.toLocaleString()} drawn)</span>` : ``) +
+    (AT.alpha ? ` · sim α=${AT.alpha.toFixed(3)}` : ``) +
+    `<br>files aggregated from <b>${(m.function_edges || 0).toLocaleString()}</b> function calls; ` +
+    `link weight = distinct calls between two files. ` +
+    (AT.scope === "all"
+      ? `grey nodes are call targets outside the five analysed modules — no claims of their own.`
+      : `showing only files carrying published claims.`) +
+    `<br>drag to pan · wheel to zoom · hover isolates a file's calls · click opens it in browse.`;
+}
+
+(function atWire() {
+  const sl = document.getElementById("atMinW");
+  const mk = (host, opts, get, set) => {
+    const h = document.getElementById(host);
+    h.textContent = "";
+    for (const [val, label] of opts) {
+      const b = el("button", get() === val ? "on" : null, label);
+      b.onclick = () => { set(val); [...h.children].forEach(c => c.classList.remove("on")); b.classList.add("on"); };
+      h.appendChild(b);
+    }
+  };
+  mk("atScope", [["pub", "published"], ["all", "+ call targets"]],
+     () => AT.scope, v => {
+       AT.scope = v; AT.hover = null;
+       // 4,686 files at every weight is fog; open the wide scope on a threshold
+       // that leaves a readable map, and let the slider take it from there.
+       const d = v === "all" ? 6 : 1;
+       AT.minW = d; sl.value = d; document.getElementById("atMinWv").textContent = d;
+       atBuild();
+     });
+  mk("atLayout", [["atlas", "atlas"], ["force", "force"], ["grid", "grid"]],
+     () => AT.layout, v => { AT.layout = v; atLayout(); });
+  sl.oninput = () => {
+    document.getElementById("atMinWv").textContent = sl.value;
+    AT.minW = +sl.value; AT.hover = null; atBuild();
+  };
+  document.getElementById("atFit").onclick = atFit;
+
+  const c = document.getElementById("cnv");
+  let dragging = false, lx = 0, ly = 0, moved = 0;
+  c.addEventListener("mousedown", e => { dragging = true; moved = 0; lx = e.clientX; ly = e.clientY; c.classList.add("drag"); });
+  addEventListener("mouseup", () => { dragging = false; c.classList.remove("drag"); });
+  c.addEventListener("mousemove", e => {
+    const b = c.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
+    if (dragging) {
+      moved += Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly);
+      AT.tx += e.clientX - lx; AT.ty += e.clientY - ly;
+      lx = e.clientX; ly = e.clientY; atDraw(); return;
+    }
+    const hit = atHit(mx, my);
+    if (hit !== AT.hover) { AT.hover = hit; atDraw(); }
+    const tip = document.getElementById("atTip");
+    if (!hit) { tip.style.display = "none"; return; }
+    tip.style.display = "block";
+    tip.innerHTML = `<div class="t">${esc(hit.f)}</div><div class="d">` +
+      (hit.pub ? `<b>${hit.c}</b> claims · mostly <b>${esc(hit.top || "—")}</b> · ` : `no claims (outside the analysed modules) · `) +
+      `<b>${hit.deg.toLocaleString()}</b> weighted calls` + (hit.s ? ` · <b>${hit.s}</b> internal` : ``) +
+      (hit.pub ? `<br>click to open in browse` : ``) + `</div>`;
+    tip.style.left = Math.min(mx + 14, c.clientWidth - 350) + "px";
+    tip.style.top = Math.min(my + 14, c.clientHeight - 70) + "px";
+  });
+  c.addEventListener("mouseleave", () => {
+    AT.hover = null; document.getElementById("atTip").style.display = "none"; atDraw();
+  });
+  c.addEventListener("click", e => {
+    if (moved > 4) return;
+    const b = c.getBoundingClientRect();
+    const hit = atHit(e.clientX - b.left, e.clientY - b.top);
+    if (hit && hit.pub && TREE[hit.m] && TREE[hit.m][hit.f]) {
+      state.path = [hit.m, hit.f]; showTab("browse"); render();
+    }
+  });
+  // The canvas can be laid out at zero size (tab opened in the background, pane
+  // hidden), and a fit computed then leaves the map parked off-screen. Watch the
+  // box instead of guessing: fit the first time it has real size, redraw after.
+  let fitted = false;
+  new ResizeObserver(() => {
+    if (!AT.ready || !c.clientWidth) return;
+    if (!fitted) { fitted = true; atFit(); } else atDraw();
+  }).observe(document.getElementById("atlas"));
+  AT.needFit = () => { fitted = false; };
+
+  c.addEventListener("wheel", e => {
+    e.preventDefault();
+    const b = c.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
+    const f = Math.exp(-e.deltaY * 0.0016), nk = Math.max(0.03, Math.min(14, AT.k * f));
+    AT.tx = mx - (mx - AT.tx) * (nk / AT.k);
+    AT.ty = my - (my - AT.ty) * (nk / AT.k);
+    AT.k = nk; atDraw();
+  }, { passive: false });
+  addEventListener("resize", () => { if (AT.ready) atDraw(); });
+})();
+
+function atHit(mx, my) {
+  let best = null, bd = 15 * 15;
+  for (const n of AT.nodes) {
+    if (AT.off.has(n.m)) continue;
+    const dx = n.x * AT.k + AT.tx - mx, dy = n.y * AT.k + AT.ty - my, d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = n; }
+  }
+  return best;
+}
+
+const TABS = {
+  browse: { tab: "tabBrowse", show: ["columns", "crumbs"] },
+  atlas:  { tab: "tabAtlas",  show: ["atlas"] },
+  twins:  { tab: "tabTwins",  show: ["twins"] },
+};
+function showTab(name) {
+  for (const [k, t] of Object.entries(TABS)) {
+    document.getElementById(t.tab).classList.toggle("on", k === name);
+    for (const id of t.show)
+      document.getElementById(id).style.display =
+        k !== name ? "none" : (id === "columns" ? "flex" : id === "crumbs" ? "flex" : "block");
+  }
+  if (name === "atlas") { atLoad(); requestAnimationFrame(() => AT.ready ? atFit() : null); }
+  if (name === "twins") loadTwins();
+}
+for (const [k, t] of Object.entries(TABS))
+  document.getElementById(t.tab).onclick = e => { e.preventDefault(); showTab(k); };
+
 let TWINS = null;
-function showTwins() {
+function loadTwins() {
   const host = document.getElementById("twins");
-  document.getElementById("columns").style.display = "none";
-  document.getElementById("crumbs").style.display = "none";
-  host.style.display = "block";
-  document.getElementById("tabTwins").classList.add("on");
-  document.getElementById("tabBrowse").classList.remove("on");
   if (TWINS) return;
   fetch("data/twins.json").then(r => r.json()).then(d => {
     TWINS = d;
@@ -465,15 +893,6 @@ function showTwins() {
         </div>`).join("");
   });
 }
-function showBrowse() {
-  document.getElementById("twins").style.display = "none";
-  document.getElementById("columns").style.display = "flex";
-  document.getElementById("crumbs").style.display = "flex";
-  document.getElementById("tabBrowse").classList.add("on");
-  document.getElementById("tabTwins").classList.remove("on");
-}
-document.getElementById("tabTwins").onclick = e => { e.preventDefault(); showTwins(); };
-document.getElementById("tabBrowse").onclick = e => { e.preventDefault(); showBrowse(); };
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && state.path.length) {
