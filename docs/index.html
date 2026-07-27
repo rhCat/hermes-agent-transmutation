@@ -185,6 +185,36 @@
   #atlas .tip .d { color: var(--text-dim); }
   #atlas .tip .d b { color: var(--text); font-weight: 400; }
 
+  /* Selecting pins the highlight; opening the file is a separate, explicit act. */
+  #atlas .selp {
+    position: absolute; right: 10px; bottom: 8px; z-index: 4; display: none;
+    background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 5px;
+    padding: 7px 9px; font-size: 11px; max-width: 340px; line-height: 1.55;
+  }
+  #atlas .selp .t { color: var(--accent); word-break: break-all; margin-bottom: 2px; }
+  #atlas .selp .d { color: var(--text-mid); }
+  #atlas .selp .d b { color: var(--text-bright); font-weight: 600; }
+  #atlas .selp h5 { margin: 6px 0 2px; font-size: 10px; font-weight: 600;
+                    color: var(--text-dim); text-transform: lowercase; }
+  #atlas .selp .p {
+    display: flex; gap: 6px; align-items: baseline; cursor: pointer;
+    color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #atlas .selp .p:hover { color: var(--accent); }
+  #atlas .selp .p i { font-style: normal; color: var(--text-dim); flex: none; }
+  #atlas .selp .p b { color: var(--num); font-weight: 400; margin-left: auto;
+                      flex: none; font-variant-numeric: tabular-nums; }
+  #atlas .selp .acts { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  #atlas .selp .acts button, #atlas .selp .acts a {
+    border: 1px solid var(--border); border-radius: 3px; padding: 2px 8px;
+    font: inherit; font-size: 11px; background: transparent;
+    color: var(--text-mid); cursor: pointer; text-decoration: none;
+  }
+  #atlas .selp .acts button:hover, #atlas .selp .acts a:hover {
+    border-color: var(--accent); color: var(--accent);
+  }
+  #atlas .selp .acts button.primary { color: var(--accent); border-color: var(--accent); }
+
   footer {
     flex: none; padding: 6px 14px; border-top: 1px solid var(--border);
     background: var(--bg-panel); color: var(--text-dim); font-size: 11px;
@@ -221,6 +251,7 @@
   <div class="legend" id="atLegend"></div>
   <div class="note" id="atNote">loading graph…</div>
   <div class="tip" id="atTip"></div>
+  <div class="selp" id="atSel"></div>
 </div>
 <div id="twins"></div>
 <footer id="foot"></footer>
@@ -511,7 +542,7 @@ const MOD_COLORS = ["#35d0ba", "#c274e8", "#7aa2f7", "#e0af68", "#9ece6a",
 const AT = {
   raw: null, nodes: [], edges: [], byMod: new Map(), color: new Map(), off: new Set(),
   scope: "pub", layout: "atlas", minW: 1, alpha: 0, raf: 0, noTests: false, hidTests: 0,
-  k: 1, tx: 0, ty: 0, hover: null, drawn: 0, capped: 0, ready: false,
+  k: 1, tx: 0, ty: 0, hover: null, sel: null, drawn: 0, capped: 0, ready: false,
 };
 const AT_CAP = 40000;   // edges drawn per frame; beyond this the picture is mush anyway
 
@@ -571,6 +602,7 @@ function atBuild() {
   const mods = [...AT.byMod.keys()].sort((a, b) => AT.byMod.get(b).length - AT.byMod.get(a).length);
   AT.color = new Map(mods.map((m, i) => [m, MOD_COLORS[i % MOD_COLORS.length]]));
   AT.ready = true;
+  AT.sel = null; atSelPanel();
   if (AT.needFit) AT.needFit();     // a new scope deserves a fresh viewport
   atLegend(mods);
   atLayout();
@@ -706,7 +738,8 @@ function atDraw() {
   const { k, tx, ty } = AT, N = AT.nodes;
   const X = n => n.x * k + tx, Y = n => n.y * k + ty;
   const vis = n => !AT.off.has(n.m);
-  const h = AT.hover;
+  // Hover previews; a pinned selection holds when the pointer leaves the map.
+  const h = AT.hover || AT.sel;
   const inc = h ? new Set() : null;
 
   g.lineWidth = 1;
@@ -737,6 +770,10 @@ function atDraw() {
     g.globalAlpha = h ? (n === h || inc.has(n) ? 1 : 0.16) : (n.pub ? 0.92 : 0.5);
     g.fill();
     if (n === h) { g.globalAlpha = 1; g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke(); }
+    if (n === AT.sel) {
+      g.globalAlpha = 1; g.strokeStyle = "#35d0ba"; g.lineWidth = 1.6;
+      g.beginPath(); g.arc(x, y, r + 3.5, 0, 6.2832); g.stroke();
+    }
   }
   g.globalAlpha = 1;
 
@@ -779,7 +816,7 @@ function atNote() {
     (AT.scope === "all"
       ? `grey nodes are call targets outside the five analysed modules — no claims of their own.`
       : `showing only files carrying published claims.`) +
-    `<br>drag to pan · wheel to zoom · hover isolates a file's calls · click opens it in browse.`;
+    `<br>drag to pan · wheel to zoom · hover isolates a file's calls · click pins them.`;
 }
 
 (function atWire() {
@@ -838,20 +875,24 @@ function atNote() {
     tip.innerHTML = `<div class="t">${esc(hit.f)}</div><div class="d">` +
       (hit.pub ? `<b>${hit.c}</b> claims · mostly <b>${esc(hit.top || "—")}</b> · ` : `no claims (outside the analysed modules) · `) +
       `<b>${hit.deg.toLocaleString()}</b> weighted calls` + (hit.s ? ` · <b>${hit.s}</b> internal` : ``) +
-      (hit.pub ? `<br>click to open in browse` : ``) + `</div>`;
+      `<br>click to pin its links` + (hit.pub ? ` · double-click to open` : ``) + `</div>`;
     tip.style.left = Math.min(mx + 14, c.clientWidth - 350) + "px";
     tip.style.top = Math.min(my + 14, c.clientHeight - 70) + "px";
   });
   c.addEventListener("mouseleave", () => {
     AT.hover = null; document.getElementById("atTip").style.display = "none"; atDraw();
   });
+  // Click SELECTS — it pins the highlight so you can read the links without
+  // holding the mouse still. Leaving the map is a deliberate second action.
   c.addEventListener("click", e => {
     if (moved > 4) return;
     const b = c.getBoundingClientRect();
+    atSelect(atHit(e.clientX - b.left, e.clientY - b.top));
+  });
+  c.addEventListener("dblclick", e => {
+    const b = c.getBoundingClientRect();
     const hit = atHit(e.clientX - b.left, e.clientY - b.top);
-    if (hit && hit.pub && TREE[hit.m] && TREE[hit.m][hit.f]) {
-      state.path = [hit.m, hit.f]; showTab("browse"); render();
-    }
+    if (hit) { atSelect(hit); atOpen(hit); }
   });
   // The canvas can be laid out at zero size (tab opened in the background, pane
   // hidden), and a fit computed then leaves the map parked off-screen. Watch the
@@ -873,6 +914,72 @@ function atNote() {
   }, { passive: false });
   addEventListener("resize", () => { if (AT.ready) atDraw(); });
 })();
+
+function atSelect(n) {
+  AT.sel = n || null;
+  atSelPanel();
+  atDraw();
+}
+
+function atOpen(n) {
+  if (!n || !n.pub || !TREE[n.m] || !TREE[n.m][n.f]) return;
+  state.path = [n.m, n.f];
+  showTab("browse");
+  render();
+}
+
+function atSelPanel() {
+  const host = document.getElementById("atSel");
+  const n = AT.sel;
+  if (!n) { host.style.display = "none"; host.textContent = ""; return; }
+  host.style.display = "block";
+  host.textContent = "";
+  host.appendChild(el("div", "t", n.f));
+
+  const d = el("div", "d");
+  d.innerHTML = (n.pub
+      ? `<b>${n.c}</b> claims · mostly <b>${esc(n.top || "—")}</b><br>`
+      : `no claims — a call target outside the five analysed modules<br>`) +
+    `<b>${n.deg.toLocaleString()}</b> weighted calls` +
+    (n.s ? ` · <b>${n.s}</b> within the file` : ``);
+  host.appendChild(d);
+
+  // The heaviest neighbours, so the map can be walked without leaving it.
+  const partners = [];
+  for (const e of AT.edges) {
+    if (AT.nodes[e.a] === n) partners.push({ dir: "→", o: AT.nodes[e.b], w: e.w });
+    else if (AT.nodes[e.b] === n) partners.push({ dir: "←", o: AT.nodes[e.a], w: e.w });
+  }
+  partners.sort((a, b) => b.w - a.w);
+  if (partners.length) {
+    host.appendChild(el("h5", null, `heaviest links (of ${partners.length})`));
+    for (const p of partners.slice(0, 6)) {
+      const r = el("div", "p");
+      r.appendChild(el("i", null, p.dir));
+      r.appendChild(el("span", null, p.o.f.split("/").pop()));
+      r.appendChild(el("b", null, String(p.w)));
+      r.title = p.o.f;
+      r.onclick = () => atSelect(p.o);
+      host.appendChild(r);
+    }
+  }
+
+  const acts = el("div", "acts");
+  if (n.pub && TREE[n.m] && TREE[n.m][n.f]) {
+    const b = el("button", "primary", "open node ↗");
+    b.onclick = () => atOpen(n);
+    acts.appendChild(b);
+  }
+  if (n.pub) {
+    const a = el("a", null, "source ↗");
+    a.href = srcUrl(n.f); a.target = "_blank"; a.rel = "noopener";
+    acts.appendChild(a);
+  }
+  const cl = el("button", null, "clear");
+  cl.onclick = () => atSelect(null);
+  acts.appendChild(cl);
+  host.appendChild(acts);
+}
 
 function atHit(mx, my) {
   let best = null, bd = 15 * 15;
@@ -937,6 +1044,9 @@ function loadTwins() {
 }
 
 document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.getElementById("atlas").style.display === "block" && AT.sel) {
+    atSelect(null); return;
+  }
   if (e.key === "Escape" && state.path.length) {
     state.path.pop(); render();
   }
