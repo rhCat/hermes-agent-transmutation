@@ -88,6 +88,18 @@
     padding: 3px 8px; cursor: pointer;
   }
 
+  .ego { border-bottom: 1px solid var(--border); background: var(--bg); }
+  .ego .hd { padding: 5px 10px; font-size: 11px; color: var(--text-dim);
+             display: flex; gap: 8px; align-items: baseline; }
+  .ego .hd b { color: var(--accent); font-weight: 600; }
+  .ego .warn { color: var(--warn); }
+  .ego svg { display: block; width: 100%; }
+  .ego text { font: 10px "SF Mono", Menlo, monospace; }
+  .ego text.c { fill: var(--text); cursor: pointer; }
+  .ego text.c:hover { fill: var(--accent); text-decoration: underline; }
+  .ego text.mid { fill: var(--accent); font-weight: 700; }
+  .ego text.dim { fill: var(--text-dim); }
+  .ego line { stroke: #2b3648; }
   .claim { padding: 7px 10px; border-bottom: 1px solid rgba(31,39,53,.5); font-size: 12px; }
   .claim .top { display: flex; gap: 7px; align-items: baseline; }
   .claim .fn { color: var(--str); overflow: hidden; text-overflow: ellipsis; }
@@ -143,7 +155,7 @@ const el = (t, cls, txt) => {
   return n;
 };
 
-let META = {}, TREE = {}, CLAIMS = [];
+let META = {}, TREE = {}, CLAIMS = [], CG = null, cgPending = null;
 // path = [module, file, function] — the drill-down, one segment per column
 const state = { path: [], colUI: {} };
 
@@ -307,12 +319,80 @@ function buildColumn(depth, parent) {
   return col;
 }
 
+// The full graph is ~4M edges; only the ego network is useful at review time,
+// and it is 13.9 MB, so it loads on first function selection rather than upfront.
+function ensureCallgraph(cb) {
+  if (CG) return cb();
+  if (!cgPending) cgPending = fetch("data/callgraph.json").then(r => r.json())
+    .then(d => { CG = d.graph || {}; CG._meta = d.meta || {}; })
+    .catch(() => { CG = {}; });
+  cgPending.then(cb);
+}
+
+function buildEgo(fn) {
+  const wrap = el("div", "ego");
+  const hd = el("div", "hd");
+  hd.innerHTML = `<span>call graph</span>`;
+  wrap.appendChild(hd);
+  const host = el("div");
+  wrap.appendChild(host);
+
+  ensureCallgraph(() => {
+    const g = (CG || {})[fn];
+    if (!g) { hd.innerHTML = `<span>call graph</span><span class="dim">no edges recorded</span>`; return; }
+    const ins = g.in || [], outs = g.out || [];
+    hd.innerHTML = `<span>call graph</span>` +
+      `<b>${g.in_total}</b><span>callers</span><b>${g.out_total}</b><span>callees</span>` +
+      ((g.in_total > ins.length || g.out_total > outs.length)
+        ? `<span class="warn">showing first ${Math.max(ins.length, outs.length)} — truncated</span>` : ``) +
+      // ids in the graph are BARE NAMES, so a common accessor merges every
+      // same-named function in the tree. Say so where it misleads most.
+      (g.in_total > 500 ? `<span class="warn">· generic name: callers likely merged across the tree</span>` : ``);
+
+    const rows = Math.max(ins.length, outs.length, 1);
+    const H = Math.max(60, rows * 15 + 22), W = 640, midX = W / 2;
+    const y = i => 16 + i * 15;
+    const seg = (arr, x, anchor, dir) => arr.map((n, i) => `
+      <line x1="${dir < 0 ? x + 4 : midX + 46}" y1="${y(i) - 3}"
+            x2="${dir < 0 ? midX - 46 : x - 4}" y2="${H / 2 - 3}"/>
+      <text class="c" x="${x}" y="${y(i)}" text-anchor="${anchor}"
+            data-fn="${esc(n.fn)}" data-file="${esc(n.file)}">${esc(n.fn)}</text>`).join("");
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">
+      ${seg(ins, midX - 60, "end", -1)}
+      ${seg(outs, midX + 60, "start", 1)}
+      <text class="mid" x="${midX}" y="${H / 2}" text-anchor="middle">${esc(fn)}</text>
+      <text class="dim" x="${midX - 60}" y="10" text-anchor="end">callers</text>
+      <text class="dim" x="${midX + 60}" y="10" text-anchor="start">callees</text>
+    </svg>`;
+    host.querySelectorAll("text.c").forEach(t => {
+      t.onclick = () => jumpTo(t.dataset.fn, t.dataset.file);
+      t.append(document.createTextNode(""));
+      t.setAttribute("title", t.dataset.file || "");
+    });
+  });
+  return wrap;
+}
+
+// Navigate to a neighbour if it is in the published slice set; otherwise say so
+// rather than silently doing nothing — most callees live outside these 5 modules.
+function jumpTo(fn, file) {
+  for (const mod in TREE)
+    for (const f in TREE[mod])
+      if (TREE[mod][f][fn]) { state.path = [mod, f, fn]; render(); return; }
+  const c = document.getElementById("crumbs");
+  const note = el("span", null, ` — ${fn} is outside the published modules`);
+  note.style.cssText = "color:var(--warn);font-size:11px";
+  c.appendChild(note);
+  setTimeout(() => note.remove(), 2600);
+}
+
 function buildClaims(list) {
   const col = el("div", "col");
   const head = el("div", "col-head");
   head.appendChild(el("span", "name", "claims"));
   head.appendChild(el("span", null, String(list.length)));
   col.appendChild(head);
+  if (list[0] && list[0].fn) col.appendChild(buildEgo(list[0].fn));
   const body = el("div", "col-body");
   body.innerHTML = list.map(c => `
     <div class="claim">
